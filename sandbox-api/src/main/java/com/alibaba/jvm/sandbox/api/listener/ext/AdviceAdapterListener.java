@@ -5,6 +5,7 @@ import com.alibaba.jvm.sandbox.api.listener.EventListener;
 import com.alibaba.jvm.sandbox.api.util.BehaviorDescriptor;
 import com.alibaba.jvm.sandbox.api.util.CacheGet;
 import com.alibaba.jvm.sandbox.api.util.GaStringUtils;
+import com.alibaba.jvm.sandbox.api.util.LazyGet;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -54,15 +55,26 @@ public class AdviceAdapterListener implements EventListener {
             case BEFORE: {
                 final BeforeEvent bEvent = (BeforeEvent) event;
                 final ClassLoader loader = toClassLoader(bEvent.javaClassLoader);
-                final Class<?> targetClass = toClass(loader, bEvent.javaClassName);
                 final Advice advice = new Advice(
                         bEvent.processId,
                         bEvent.invokeId,
-                        toBehavior(
-                                targetClass,
-                                bEvent.javaMethodName,
-                                bEvent.javaMethodDesc
-                        ),
+                        new LazyGet<Behavior>() {
+
+                            private final ClassLoader _loader = loader;
+                            private final String _javaClassName = bEvent.javaClassName;
+                            private final String _javaMethodName = bEvent.javaMethodName;
+                            private final String _javaMethodDesc = bEvent.javaMethodDesc;
+
+                            @Override
+                            protected Behavior initialValue() throws Throwable {
+                                return toBehavior(
+                                        toClass(_loader, _javaClassName),
+                                        _javaMethodName,
+                                        _javaMethodDesc
+                                );
+                            }
+                        },
+                        loader,
                         bEvent.argumentArray,
                         bEvent.target
                 );
@@ -88,9 +100,7 @@ public class AdviceAdapterListener implements EventListener {
                 break;
             }
 
-            /**
-             * 这里需要感知到IMMEDIATELY，修复#117
-             */
+            // 这里需要感知到IMMEDIATELY，修复#117
             case IMMEDIATELY_THROWS:
             case IMMEDIATELY_RETURN: {
                 final InvokeEvent invokeEvent = (InvokeEvent) event;
@@ -103,7 +113,12 @@ public class AdviceAdapterListener implements EventListener {
                 final ReturnEvent rEvent = (ReturnEvent) event;
                 final WrapAdvice wrapAdvice = opStack.popByExpectInvokeId(rEvent.invokeId);
                 if (null != wrapAdvice) {
-                    adviceListener.afterReturning(wrapAdvice.advice.applyReturn(rEvent.object));
+                    Advice advice = wrapAdvice.advice.applyReturn(rEvent.object);
+                    try {
+                        adviceListener.afterReturning(advice);
+                    } finally {
+                        adviceListener.after(advice);
+                    }
                 }
                 break;
             }
@@ -111,7 +126,12 @@ public class AdviceAdapterListener implements EventListener {
                 final ThrowsEvent tEvent = (ThrowsEvent) event;
                 final WrapAdvice wrapAdvice = opStack.popByExpectInvokeId(tEvent.invokeId);
                 if (null != wrapAdvice) {
-                    adviceListener.afterThrowing(wrapAdvice.advice.applyThrows(tEvent.throwable));
+                    Advice advice = wrapAdvice.advice.applyThrows(tEvent.throwable);
+                    try {
+                        adviceListener.afterThrowing(advice);
+                    } finally {
+                        adviceListener.after(advice);
+                    }
                 }
                 break;
             }
@@ -150,13 +170,24 @@ public class AdviceAdapterListener implements EventListener {
                     // 这里做一个容灾保护，防止在callBefore()中发生什么异常导致beforeCall()之前失败
                     return;
                 }
-                adviceListener.afterCallReturning(
-                        wrapAdvice.advice,
-                        target.callLineNum,
-                        target.callJavaClassName,
-                        target.callJavaMethodName,
-                        target.callJavaMethodDesc
-                );
+                try {
+                    adviceListener.afterCallReturning(
+                            wrapAdvice.advice,
+                            target.callLineNum,
+                            target.callJavaClassName,
+                            target.callJavaMethodName,
+                            target.callJavaMethodDesc
+                    );
+                } finally {
+                    adviceListener.afterCall(
+                            wrapAdvice.advice,
+                            target.callLineNum,
+                            target.callJavaClassName,
+                            target.callJavaMethodName,
+                            target.callJavaMethodDesc,
+                            null
+                    );
+                }
                 break;
             }
 
@@ -171,14 +202,25 @@ public class AdviceAdapterListener implements EventListener {
                     // 这里做一个容灾保护，防止在callBefore()中发生什么异常导致beforeCall()之前失败
                     return;
                 }
-                adviceListener.afterCallThrowing(
-                        wrapAdvice.advice,
-                        target.callLineNum,
-                        target.callJavaClassName,
-                        target.callJavaMethodName,
-                        target.callJavaMethodDesc,
-                        ctEvent.throwException
-                );
+                try {
+                    adviceListener.afterCallThrowing(
+                            wrapAdvice.advice,
+                            target.callLineNum,
+                            target.callJavaClassName,
+                            target.callJavaMethodName,
+                            target.callJavaMethodDesc,
+                            ctEvent.throwException
+                    );
+                } finally {
+                    adviceListener.afterCall(
+                            wrapAdvice.advice,
+                            target.callLineNum,
+                            target.callJavaClassName,
+                            target.callJavaMethodName,
+                            target.callJavaMethodDesc,
+                            ctEvent.throwException
+                    );
+                }
                 break;
             }
 
@@ -277,7 +319,7 @@ public class AdviceAdapterListener implements EventListener {
     /**
      * 行为缓存KEY对象
      */
-    private class BehaviorCacheKey {
+    private static class BehaviorCacheKey {
         private final Class<?> clazz;
         private final String javaMethodName;
         private final String javaMethodDesc;
@@ -337,7 +379,7 @@ public class AdviceAdapterListener implements EventListener {
     /**
      * CALL目标对象
      */
-    private class CallTarget {
+    private static class CallTarget {
 
         final int callLineNum;
         final String callJavaClassName;
@@ -355,7 +397,7 @@ public class AdviceAdapterListener implements EventListener {
     /**
      * 通知内部封装，主要是要封装掉attachment
      */
-    private class WrapAdvice implements Attachment {
+    private static class WrapAdvice implements Attachment {
 
         final Advice advice;
         Object attachment;

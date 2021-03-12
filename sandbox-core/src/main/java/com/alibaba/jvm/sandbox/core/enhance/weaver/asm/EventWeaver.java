@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 import java.com.alibaba.jvm.sandbox.spy.Spy;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Set;
 
 import static com.alibaba.jvm.sandbox.core.util.SandboxStringUtils.toJavaClassName;
@@ -40,10 +39,10 @@ class CallAsmCodeLock extends AsmCodeLock {
  */
 class AsmTryCatchBlock {
 
-    protected final Label start;
-    protected final Label end;
-    protected final Label handler;
-    protected final String type;
+    final Label start;
+    final Label end;
+    final Label handler;
+    final String type;
 
     AsmTryCatchBlock(Label start, Label end, Label handler, String type) {
         this.start = start;
@@ -109,20 +108,17 @@ public class EventWeaver extends ClassVisitor implements Opcodes, AsmTypes, AsmM
 
     private String getBehaviorSignCode(final String name,
                                        final String desc) {
-        final Type methodType = Type.getMethodType(desc);
-        final Collection<String> parameterClassNameArray = new ArrayList<String>();
-        if (null != methodType.getArgumentTypes()) {
-            for (final Type parameterType : methodType.getArgumentTypes()) {
-                parameterClassNameArray.add(parameterType.getClassName());
+        final StringBuilder sb = new StringBuilder(256).append(targetJavaClassName).append("#").append(name).append("(");
+
+        final Type[] methodTypes = Type.getMethodType(desc).getArgumentTypes();
+        if (methodTypes.length != 0) {
+            sb.append(methodTypes[0].getClassName());
+            for (int i = 1; i < methodTypes.length; i++) {
+                sb.append(",").append(methodTypes[i].getClassName());
             }
         }
-        final String signCode = String.format(
-                "%s#%s(%s)",
-                targetJavaClassName,
-                name,
-                join(parameterClassNameArray, ",")
-        );
-        return signCode;
+
+        return sb.append(")").toString();
     }
 
     @Override
@@ -148,6 +144,9 @@ public class EventWeaver extends ClassVisitor implements Opcodes, AsmTypes, AsmM
 
             private final Label beginLabel = new Label();
             private final Label endLabel = new Label();
+            private final Label startCatchBlock = new Label();
+            private final Label endCatchBlock = new Label();
+            private int newlocal = -1;
 
             // 用来标记一个方法是否已经进入
             // JVM中的构造函数非常特殊，super();this();是在构造函数方法体执行之外进行，如果在这个之前进行了任何的流程改变操作
@@ -196,6 +195,7 @@ public class EventWeaver extends ClassVisitor implements Opcodes, AsmTypes, AsmM
                 codeLockForTracing.lock(new CodeLock.Block() {
                     @Override
                     public void code() {
+                        mark(beginLabel);
                         loadArgArray();
                         dup();
                         push(namespace);
@@ -211,7 +211,6 @@ public class EventWeaver extends ClassVisitor implements Opcodes, AsmTypes, AsmM
                         pop();
                         processControl();
                         isMethodEnter = true;
-                        mark(beginLabel);
                     }
                 });
             }
@@ -275,30 +274,28 @@ public class EventWeaver extends ClassVisitor implements Opcodes, AsmTypes, AsmM
                 }
             }
 
-            /**
-             * 加载异常
-             */
-            private void loadThrow() {
-                dup();
-            }
-
             @Override
             public void visitMaxs(int maxStack, int maxLocals) {
                 mark(endLabel);
-                visitTryCatchBlock(beginLabel, endLabel, mark(), ASM_TYPE_THROWABLE.getInternalName());
+                mv.visitLabel(startCatchBlock);
+                visitTryCatchBlock(beginLabel, endLabel, startCatchBlock, ASM_TYPE_THROWABLE.getInternalName());
 
                 codeLockForTracing.lock(new CodeLock.Block() {
                     @Override
                     public void code() {
-                        loadThrow();
+                        newlocal = newLocal(ASM_TYPE_THROWABLE);
+                        storeLocal(newlocal);
+                        loadLocal(newlocal);
                         push(namespace);
                         push(listenerId);
                         invokeStatic(ASM_TYPE_SPY, ASM_METHOD_Spy$spyMethodOnThrows);
                         processControl();
+                        loadLocal(newlocal);
                     }
                 });
 
                 throwException();
+                mv.visitLabel(endCatchBlock);
                 super.visitMaxs(maxStack, maxLocals);
             }
 
@@ -435,11 +432,14 @@ public class EventWeaver extends ClassVisitor implements Opcodes, AsmTypes, AsmM
                 asmTryCatchBlocks.add(new AsmTryCatchBlock(start, end, handler, type));
             }
 
+
+
             @Override
             public void visitEnd() {
                 for (AsmTryCatchBlock tcb : asmTryCatchBlocks) {
                     super.visitTryCatchBlock(tcb.start, tcb.end, tcb.handler, tcb.type);
                 }
+                super.visitLocalVariable("t",ASM_TYPE_THROWABLE.getDescriptor(),null,startCatchBlock,endCatchBlock,newlocal);
                 super.visitEnd();
             }
 

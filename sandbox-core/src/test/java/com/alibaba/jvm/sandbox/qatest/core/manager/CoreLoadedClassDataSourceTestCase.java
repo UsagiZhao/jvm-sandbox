@@ -3,7 +3,7 @@ package com.alibaba.jvm.sandbox.qatest.core.manager;
 import com.alibaba.jvm.sandbox.api.filter.ExtFilter;
 import com.alibaba.jvm.sandbox.api.filter.NameRegexFilter;
 import com.alibaba.jvm.sandbox.core.manager.CoreLoadedClassDataSource;
-import com.alibaba.jvm.sandbox.core.manager.impl.DefaultLoadedClassDataSource;
+import com.alibaba.jvm.sandbox.core.manager.impl.DefaultCoreLoadedClassDataSource;
 import com.alibaba.jvm.sandbox.qatest.core.mock.EmptyInstrumentation;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -45,7 +45,7 @@ public class CoreLoadedClassDataSourceTestCase {
         void methodOfWorker();
     }
 
-    private class InnerWorker implements Worker {
+    private static class InnerWorker implements Worker {
 
         @Override
         public void methodOfHuman() {
@@ -134,7 +134,7 @@ public class CoreLoadedClassDataSourceTestCase {
     }
 
     private final CoreLoadedClassDataSource coreLoadedClassDataSource
-            = new DefaultLoadedClassDataSource(mockInstrumentation, false);
+            = new DefaultCoreLoadedClassDataSource(mockInstrumentation, false);
 
 
     @Test
@@ -188,7 +188,7 @@ public class CoreLoadedClassDataSourceTestCase {
     }
 
 
-    class NameRegexWithSubClassesExtFilter extends NameRegexFilter implements ExtFilter {
+    static class NameRegexWithSubClassesExtFilter extends NameRegexFilter implements ExtFilter {
 
         /**
          * 构造名称正则表达式过滤器

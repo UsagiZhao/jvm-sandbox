@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.AccessControlContext;
@@ -129,8 +128,7 @@ public class ModuleJarClassLoader extends RoutingURLClassLoader {
             if (this instanceof Closeable) {
                 logger.debug("JDK is 1.7+, use URLClassLoader[file={}].close()", moduleJarFile);
                 try {
-                    final Method closeMethod = unCaughtGetClassDeclaredJavaMethod(URLClassLoader.class, "close");
-                    closeMethod.invoke(this);
+                    ((Closeable)this).close();
                 } catch (Throwable cause) {
                     logger.warn("close ModuleJarClassLoader[file={}] failed. JDK7+", moduleJarFile, cause);
                 }
@@ -141,7 +139,7 @@ public class ModuleJarClassLoader extends RoutingURLClassLoader {
             // 对于JDK6的版本，URLClassLoader要关闭起来就显得有点麻烦，这里弄了一大段代码来稍微处理下
             // 而且还不能保证一定释放干净了，至少释放JAR文件句柄是没有什么问题了
             try {
-                logger.debug("JDK is less then 1.7+, use File.release()", moduleJarFile);
+                logger.debug("JDK is less then 1.7+, use File.release()");
                 final Object sun_misc_URLClassPath = unCaughtGetClassDeclaredJavaFieldValue(URLClassLoader.class, "ucp", this);
                 final Object java_util_Collection = unCaughtGetClassDeclaredJavaFieldValue(sun_misc_URLClassPath.getClass(), "loaders", sun_misc_URLClassPath);
 

@@ -3,14 +3,14 @@ package com.alibaba.jvm.sandbox.qatest.core.enhance;
 import com.alibaba.jvm.sandbox.api.event.BeforeEvent;
 import com.alibaba.jvm.sandbox.api.event.Event;
 import com.alibaba.jvm.sandbox.qatest.core.enhance.listener.LineNumTracingEventListener;
+import com.alibaba.jvm.sandbox.qatest.core.enhance.listener.TracingAdviceListener;
 import com.alibaba.jvm.sandbox.qatest.core.enhance.listener.TracingEventListener;
 import com.alibaba.jvm.sandbox.qatest.core.enhance.target.Calculator;
 import com.alibaba.jvm.sandbox.qatest.core.util.JvmHelper;
-import org.junit.BeforeClass;
+import com.alibaba.jvm.sandbox.qatest.core.util.JvmHelper.ThirdTransformer;
+
 import org.junit.Ignore;
 import org.junit.Test;
-
-import java.com.alibaba.jvm.sandbox.spy.Spy;
 
 import static com.alibaba.jvm.sandbox.api.ProcessController.returnImmediately;
 import static com.alibaba.jvm.sandbox.api.ProcessController.throwsImmediately;
@@ -23,10 +23,10 @@ import static org.junit.Assert.assertEquals;
 
 public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCase {
 
-    @BeforeClass
-    public static void initSpy() {
-        Spy.isSpyThrowException = true;
-    }
+//    @BeforeClass
+//    public static void initSpy() {
+//        Spy.isSpyThrowException = true;
+//    }
 
     @Test
     @Override
@@ -68,14 +68,14 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
 
         assertEquals(30, sum(newInstance(calculatorClass), 10,20));
         listener.assertLIneTracing(
-                91,
-                94,
-                95,
+                93,
                 96,
-                95,
-                96,
-                95,
-                98
+                97,
+                98,
+                97,
+                98,
+                97,
+                100
         );
     }
 
@@ -373,18 +373,18 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
 
         assertEquals(30, sum(newInstance(calculatorClass), 10,20));
         listener.assertLIneTracing(
-                91,
-                94,
-                95,
+                93,
                 96,
-                78,
-                81,
-                95,
-                96,
-                78,
-                81,
-                95,
-                98
+                97,
+                98,
+                80,
+                83,
+                97,
+                98,
+                80,
+                83,
+                97,
+                100
         );
     }
 
@@ -520,7 +520,7 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
                             @Override
                             public void onEvent(Event event) throws Throwable {
                                 super.onEvent(event);
-                                if (IsSpecalMethodEnvet(event, "add")){
+                                if (isSpecialMethodEvent(event, "add")){
                                     returnImmediately(100);
                                 }
                             }
@@ -554,7 +554,7 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
                             @Override
                             public void onEvent(Event event) throws Throwable {
                                 super.onEvent(event);
-                                if (IsSpecalMethodEnvet(event, "add")){
+                                if (isSpecialMethodEvent(event, "add")){
                                     returnImmediately(100);
                                 }
                             }
@@ -588,7 +588,7 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
                             @Override
                             public void onEvent(Event event) throws Throwable {
                                 super.onEvent(event);
-                                if (IsSpecalMethodEnvet(event, "add")){
+                                if (isSpecialMethodEvent(event, "add")){
                                     throwsImmediately(new Throwable(ERROR_EXCEPTION_MESSAGE));
                                 }
                             }
@@ -625,7 +625,7 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
                             @Override
                             public void onEvent(Event event) throws Throwable {
                                 super.onEvent(event);
-                                if (IsSpecalMethodEnvet(event, "add")){
+                                if (isSpecialMethodEvent(event, "add")){
                                     ((BeforeEvent)stack.peek()).argumentArray[0] = 100;
                                 }
                             }
@@ -662,7 +662,7 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
                             @Override
                             public void onEvent(Event event) throws Throwable {
                                 super.onEvent(event);
-                                if (IsSpecalMethodEnvet(event, "add")){
+                                if (isSpecialMethodEvent(event, "add")){
                                     returnImmediately(100);
                                 }
                             }
@@ -696,7 +696,7 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
                             @Override
                             public void onEvent(Event event) throws Throwable {
                                 super.onEvent(event);
-                                if (IsSpecalMethodEnvet(event, "add")){
+                                if (isSpecialMethodEvent(event, "add")){
                                     throwsImmediately(new Throwable(ERROR_EXCEPTION_MESSAGE));
                                 }
                             }
@@ -716,6 +716,86 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
                 BEFORE,
                 BEFORE,
                 THROWS,
+                THROWS
+        );
+    }
+
+    @Override
+    public void cal$addInStatic$around() throws Throwable{
+    }
+
+    @Override
+    public void cal$addInStatic$call() throws Throwable{
+    }
+
+    /**
+     * 类调用静态方法直接返回
+     * @throws Throwable 异常
+     */
+    @Test
+    @Override
+    public void cal$addInStatic$before$returnImmediately_at_addInStatic() throws Throwable{
+        final TracingEventListener listener;
+        final Class<?> calculatorClass = JvmHelper
+                .createJvm()
+                .defineClass(
+                        Calculator.class,
+                        CALCULATOR_SUM_and_ADD_FILTER,
+                        listener = new TracingEventListener(){
+                            @Override
+                            public void onEvent(Event event) throws Throwable {
+                                super.onEvent(event);
+                                if (isSpecialMethodEvent(event, "addInStatic")){
+                                    returnImmediately(100);
+                                }
+                            }
+                        },
+                        BEFORE,RETURN,THROWS
+                )
+                .loadClass(CALCULATOR_CLASS_NAME);
+
+        int value=(Integer) calculatorClass.getMethod("addInStatic",int.class,int.class).invoke(null,10,20);
+        assertEquals(100, value);
+        assertEquals(true, stack.isEmpty());
+        listener.assertEventTracing(
+                BEFORE,
+                RETURN
+        );
+    }
+
+    /**
+     * 类调用静态方法,静态方法抛出异常,捕获后直接返回
+     * @throws Throwable 异常
+     */
+    @Test
+    @Override
+    public void cal$addInStatic$throws$returnImmediately_at_addInStatic() throws Throwable{
+        final TracingEventListener listener;
+        final Class<?> calculatorClass = JvmHelper
+                .createJvm()
+                .defineClass(
+                        Calculator.class,
+                        CALCULATOR_SUM_and_ADD_FILTER,
+                        listener = new TracingEventListener(){
+                            @Override
+                            public void onEvent(Event event) throws Throwable {
+                                super.onEvent(event);
+                                if (isSpecialMethodEvent(event, "addInStatic")){
+                                    returnImmediately(100);
+                                }
+                            }
+                        },
+                        BEFORE,RETURN,THROWS
+                )
+                .loadClass(CALCULATOR_CLASS_NAME);
+
+        calculatorClass.getMethod("settCaseInStatic",
+                Calculator.TestCase.ADD$EXCEPTION.getClass()).invoke(null,Calculator.TestCase.ADD$EXCEPTION);
+        int value=(Integer) calculatorClass.getMethod("addInStatic",int.class,int.class).invoke(null,10,20);
+        assertEquals(100, value);
+        assertEquals(true, stack.isEmpty());
+        listener.assertEventTracing(
+                BEFORE,
                 THROWS
         );
     }
@@ -761,13 +841,13 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
 
         assertEquals(25, pow(newInstance(calculatorClass), 5,2));
         listener.assertLIneTracing(
-                109,
-                115,
-                109,
-                115,
-                109,
-                110,
-                113
+                111,
+                117,
+                111,
+                117,
+                111,
+                112,
+                115
         );
     }
 
@@ -833,10 +913,10 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
 
         assertEquals(30, sum(newInstance(calculatorClass), 10,20));
         listener.assertLIneTracing(
-                64,
-                65,
-                68,
-                57
+                66,
+                67,
+                70,
+                59
         );
     }
 
@@ -893,6 +973,27 @@ public class CalculatorImplByEventListenerTestCase implements ICalculatorTestCas
         listener.assertEventTracing(
                 BEFORE,
                 RETURN
+        );
+    }
+
+    @Test
+    @Override
+    public void cal$report$multiEnhance() throws Throwable {
+        final TracingEventListener listener;
+        final Class<?> calculatorClass = JvmHelper
+            .createJvm()
+            .defineClass(
+                Calculator.class,
+                new JvmHelper.Transformer(
+                    CALCULATOR_REPORT_FILTER,
+                    listener = new TracingEventListener(),
+                    BEFORE, RETURN, THROWS
+                ),new JvmHelper.ThirdTransformer(CALCULATOR_REPORT_FILTER,null)
+            ).loadClass(CALCULATOR_CLASS_NAME);
+        report(newInstance(calculatorClass), "test");
+        listener.assertEventTracing(
+            BEFORE,
+            RETURN
         );
     }
 }

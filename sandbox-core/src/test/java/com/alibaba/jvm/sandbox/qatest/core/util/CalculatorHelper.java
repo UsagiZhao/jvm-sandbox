@@ -40,7 +40,7 @@ public class CalculatorHelper {
     public static final Filter CALCULATOR_SUM_and_ADD_FILTER
             = new NameRegexFilter(
             "^com\\.alibaba\\.jvm.sandbox\\.qatest\\.core\\.enhance\\.target\\.Calculator$",
-            "^(sum|add)$"
+            "^(sum|add|addInStatic)$"
     );
 
     /**
@@ -79,6 +79,15 @@ public class CalculatorHelper {
             "^sum$"
     );
 
+    /**
+     * 拦截report()方法过滤器
+     */
+    public static final Filter CALCULATOR_REPORT_FILTER
+        = new NameRegexFilter(
+        "^com\\.alibaba\\.jvm.sandbox\\.qatest\\.core\\.enhance\\.target\\.Calculator$",
+        "^report"
+    );
+
     public static final Filter CALCULATOR_INIT_FILTER_WITH_TEST_CASE
             = new Filter() {
         @Override
@@ -90,7 +99,7 @@ public class CalculatorHelper {
         public boolean doMethodFilter(int access, String javaMethodName, String[] parameterTypeJavaClassNameArray, String[] throwsTypeJavaClassNameArray, String[] annotationTypeJavaClassNameArray) {
             if (javaMethodName.equalsIgnoreCase("<init>"))
                 return (parameterTypeJavaClassNameArray.length == 1
-                        &&parameterTypeJavaClassNameArray[0].equalsIgnoreCase("com.alibaba.jvm.sandbox.qatest.core.enhance.target.Calculator$TestCase"));
+                        && parameterTypeJavaClassNameArray[0].equalsIgnoreCase("com.alibaba.jvm.sandbox.qatest.core.enhance.target.Calculator$TestCase"));
             return false;
         }
     };
@@ -100,13 +109,14 @@ public class CalculatorHelper {
 
     /**
      * 判断是否是指定方法的Return||Throws事件
-     * @param event
-     * @param javaMethodeName
+     *
+     * @param event          事件
+     * @param javaMethodName 触发事件的方法名
      * @return
      */
-    public static boolean IsSpecalMethodEnvet(Event event, String javaMethodeName){
+    public static boolean isSpecialMethodEvent(Event event, String javaMethodName) {
 
-        if (event instanceof BeforeEvent){
+        if (event instanceof BeforeEvent) {
             BeforeEvent beforeEvent = new BeforeEvent(
                     ((BeforeEvent) event).processId,
                     ((BeforeEvent) event).invokeId,
@@ -118,24 +128,22 @@ public class CalculatorHelper {
                     ((BeforeEvent) event).argumentArray);
             stack.push(beforeEvent);
         }
-        if (event instanceof ReturnEvent){
+        if (event instanceof ReturnEvent) {
             Event eventEnd = stack.pop();
-            return isSpecalMethod(eventEnd, javaMethodeName);
+            return isSpecialMethod(eventEnd, javaMethodName);
         }
 
-        if (event instanceof ThrowsEvent){
+        if (event instanceof ThrowsEvent) {
             Event eventEnd = stack.pop();
-            return isSpecalMethod(eventEnd, javaMethodeName);
+            return isSpecialMethod(eventEnd, javaMethodName);
         }
         return false;
     }
 
-    public static boolean isSpecalMethod(Event event, String javaMethodeName){
-        if (event instanceof BeforeEvent){
+    public static boolean isSpecialMethod(Event event, String javaMethodName) {
+        if (event instanceof BeforeEvent) {
             BeforeEvent beforeEvent = (BeforeEvent) event;
-            if (beforeEvent.javaMethodName.equalsIgnoreCase(javaMethodeName)){
-                return true;
-            }
+            return beforeEvent.javaMethodName.equalsIgnoreCase(javaMethodName);
         }
         return false;
     }
@@ -175,12 +183,64 @@ public class CalculatorHelper {
      * @throws Throwable 调用失败
      */
     public static int pow(final Object calculatorObject, int num, int n) throws Throwable {
+        return invokeMethod("pow",calculatorObject,num,n);
+    }
+
+    /**
+     * 调用report()方法
+     *
+     * @param calculatorObject 目标计算器对象实例
+     * @param strArray         参数
+     * @return 返回值
+     * @throws Throwable 调用失败
+     */
+    public static void report(final Object calculatorObject, String... strArray) throws Throwable {
+        try {
+             unCaughtInvokeMethod(
+                unCaughtGetClassDeclaredJavaMethod(calculatorObject.getClass(), "report", String.class),
+                calculatorObject,
+                strArray
+            );
+        } catch (Throwable cause) {
+            if (cause instanceof UnCaughtException
+                && (cause.getCause() instanceof InvocationTargetException)) {
+                throw ((InvocationTargetException) cause.getCause()).getTargetException();
+            }
+            throw cause;
+        }
+
+    }
+
+    /**
+     * 调用addInStatic()方法
+     *
+     * @param calculatorObject addInStatic();
+     * @param a 参数
+     * @param b 参数
+     * @return a+b
+     * @throws Throwable 调用失败
+     */
+    public static int addInStatic(final Object calculatorObject, int a, int b) throws Throwable {
+        return invokeMethod("addInStatic",calculatorObject,a,b);
+    }
+
+    /**
+     * 执行体方法
+     *
+     * @param methodName 方法名称
+     * @param calculatorObject cal对象
+     * @param param1 参数1
+     * @param param2 参数2
+     * @return 返回值
+     * @throws Throwable 调用失败
+     */
+    private static int invokeMethod(String methodName,final Object calculatorObject, int param1, int param2) throws Throwable {
         try {
             return unCaughtInvokeMethod(
-                    unCaughtGetClassDeclaredJavaMethod(calculatorObject.getClass(), "pow", int.class, int.class),
+                    unCaughtGetClassDeclaredJavaMethod(calculatorObject.getClass(), methodName, int.class, int.class),
                     calculatorObject,
-                    num,
-                    n
+                    param1,
+                    param2
             );
         } catch (Throwable cause) {
             if (cause instanceof UnCaughtException
@@ -196,6 +256,8 @@ public class CalculatorHelper {
             return calculatorClass.getConstructor().newInstance();
         } catch (InvocationTargetException cause) {
             throw cause.getTargetException();
+        } catch (VerifyError e){
+            throw e;
         }
     }
 
