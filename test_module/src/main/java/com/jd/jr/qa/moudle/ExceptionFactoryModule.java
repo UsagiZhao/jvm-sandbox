@@ -92,7 +92,6 @@ public class ExceptionFactoryModule implements Module {
     /*
      * 注入异常
      * -d 'ExceptionFactoryMoudle/injectException?class=<CLASS>&method=<METHOD>&type=<EXCEPTION-TYPE>'
-     * "ExceptionFactoryMoudle/injectException?class=com.jd.jr.cis.user.rpc.impl.IdentityAuthenticationServiceRpcImpl&method=verifyCredentialsNoAndNameV3&type=NullPointException"
      */
     @Command("injectException")
     public void injectException(final Map<String, String> param, final PrintWriter writer) {
