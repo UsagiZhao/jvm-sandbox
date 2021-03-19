@@ -13,7 +13,10 @@ import com.alibaba.jvm.sandbox.api.listener.ext.EventWatcher;
 import com.alibaba.jvm.sandbox.api.resource.ModuleEventWatcher;
 import com.jd.jr.qa.utils.CommonUtils;
 import com.jd.jr.qa.utils.ProgressPrinter;
+
 import java.util.logging.Logger;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.MetaInfServices;
@@ -33,6 +36,7 @@ import static com.alibaba.jvm.sandbox.api.event.Event.Type.BEFORE;
 
 @MetaInfServices(Module.class)
 @Information(id = "exception-module", version = "0.0.1", author = "zhaoguochun@jd.com")
+@Slf4j
 public class ExceptionFactoryModule implements Module {
 
     @Resource
@@ -40,7 +44,6 @@ public class ExceptionFactoryModule implements Module {
     /**
      * 日志输出，默认采用logback，这里的日志输出到切入的服务日志中
      */
-    private Logger logger = Logger.getLogger( ExceptionFactoryModule.class.getName() );
 
 
     /**
@@ -115,13 +118,13 @@ public class ExceptionFactoryModule implements Module {
                 .includeBootstrap()
                 .onBehavior( mnPattern )
                 .onWatching()
-                .withProgress( new ProgressPrinter( printer ) )
                 .onWatch( new EventListener() {
             @Override
             public void onEvent(Event event) throws Throwable {
 
                 final BeforeEvent bEvent = (BeforeEvent) event;
-                logger.info( bEvent.javaClassName + "#" + bEvent.javaMethodName + "将被注入 " + exType.name() + "（线程名称：" + Thread.currentThread().getName() + "）");
+//                log.info( bEvent.javaClassName + "#" + bEvent.javaMethodName + "将被注入 " + exType.name() + "（线程名称：" + Thread.currentThread().getName() + "）" );
+                log.info( "{}#{}在调用前将抛出{}异常。（线程名称：{}）", bEvent.javaClassName, bEvent.javaMethodName, exType.name(), Thread.currentThread().getName() );
                 //抛出异常
                 throwsImmediately( exType.throwIt( StringUtils.isEmpty( message ) ? message : "mock 异常注入" ) );
             }
@@ -130,7 +133,8 @@ public class ExceptionFactoryModule implements Module {
         // --- 等待结束 ---
 
         try {
-            logger.info( "exception on ["+cnPattern+"#"+mnPattern+"] exception: "+exType.name()+".\nPress CTRL_C abort it!");
+//            log.info( "exception on [" + cnPattern + "#" + mnPattern + "] exception: " + exType.name() + ".\nPress CTRL_C abort it!" );
+            log.info( "exception on [{}#{}] exception:{} \nPress CTRL_C abort it!", cnPattern, mnPattern, exType.name() );
 //            printer.println(String.format(
 //                    "exception on [%s#%s] exception: %s.\nPress CTRL_C abort it!",
 //                    cnPattern,

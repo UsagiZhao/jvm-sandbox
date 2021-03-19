@@ -7,6 +7,6 @@ public class Constants {
 	/**
 	 * sandBox 日志标记
 	 */
-	public final static String Sandbox_Default_LogInfo = "SandBox Log Default Info --------";
+	public final static String Sandbox_Default_LogInfo = "SandBox Log Info --------";
 
 }

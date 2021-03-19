@@ -1,5 +1,7 @@
 package com.jd.jr.qa.moudle;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONPObject;
 import com.alibaba.jvm.sandbox.api.Information;
 import com.alibaba.jvm.sandbox.api.Module;
 import com.alibaba.jvm.sandbox.api.annotation.Command;
@@ -19,8 +21,9 @@ import com.jd.jr.qa.utils.ProgressPrinter;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.MetaInfServices;
@@ -30,6 +33,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Logger;
 
 import static com.alibaba.jvm.sandbox.api.ProcessController.throwsImmediately;
 import static com.alibaba.jvm.sandbox.api.event.Event.Type.BEFORE;
@@ -38,23 +42,20 @@ import static com.alibaba.jvm.sandbox.api.event.Event.Type.BEFORE;
  * Created by Gochin on 2021/2/8.
  */
 
+@Slf4j
 @MetaInfServices(Module.class)
-@Information(id = "log-module", version = "0.0.1", author = "zhaoguochun@jd.com")
+@Information(id = "log-module", version = "0.0.2", author = "zhaoguochun@jd.com")
 public class LogModule implements Module {
 
     @Resource
     private ModuleEventWatcher moduleEventWatcher;
-    /**
-     * 日志输出，默认采用logback，这里的日志输出到切入的服务日志中
-     */
-    private Logger logger = LoggerFactory.getLogger( LogModule.class.getName() );
-
 
     /**
      * 注入异常
-     * @param param  sandbox 命令带参
+     *
+     * @param param sandbox 命令带参
      */
-    //  -d 'LogModule/addlog?class=XXX&method=XXX'
+    //  -d 'log-module/addlog?class=XXX&method=XXX'
     @Command("addlog")
     public void addlog(final Map<String, String> param) {
         // --- 解析参数 ---
@@ -62,22 +63,20 @@ public class LogModule implements Module {
         final String mnPattern = param.get( "method" );
 
         // --- 开始增强 ---
-        final EventWatcher watcher = new EventWatchBuilder( moduleEventWatcher )
-                .onClass( cnPattern )
-                .onBehavior( mnPattern )
-                .onWatch( new AdviceListener() {
+        final EventWatcher watcher = new EventWatchBuilder( moduleEventWatcher ).onClass( cnPattern ).onBehavior( mnPattern ).onWatch( new AdviceListener() {
             @Override
             public void after(Advice advice) {
-                logger.info( "Sand Box addlog start" );
+                log.info( Constants.Sandbox_Default_LogInfo + "Sand Box addlog start" );
                 Object[] parameters = advice.getParameterArray();
                 int threadId = advice.getProcessId();
+                String threadName = Thread.currentThread().getName();
                 StringBuilder parameterStr = new StringBuilder();
                 for (int i = 0; i < parameters.length; i++) {
-                    parameterStr.append( "第" + i + "个入参为：" ).append( parameters[i] ).append( "\n" );
+                    parameterStr.append( "第" + Math.addExact( i, 1 ) + "个入参为：" ).append( parameters[i] ).append( "\n" );
                 }
-                logger.info( Constants.Sandbox_Default_LogInfo + "进程号：{}，请求方法：{}#{},\n入参：{}", threadId, cnPattern, mnPattern, parameterStr.toString() );
+                log.info( Constants.Sandbox_Default_LogInfo + "进程号：{}，进程名：{}，请求方法：{}#{}，入参：{}", threadId, threadName, cnPattern, mnPattern, parameterStr.toString() );
                 Object object = advice.getReturnObj();
-                logger.info( Constants.Sandbox_Default_LogInfo + "进程号：{}，请求方法：{}#{},接口返回：{}", threadId, cnPattern, mnPattern, object );
+                log.info( Constants.Sandbox_Default_LogInfo + "进程号：{}，进程名：{},请求方法：{}#{}，接口返回：{}", threadId, threadName, cnPattern, mnPattern, JSON.toJSONString( object ) );
 
             }
         } );
