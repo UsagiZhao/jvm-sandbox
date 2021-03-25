@@ -11,6 +11,7 @@ import com.alibaba.jvm.sandbox.api.listener.EventListener;
 import com.alibaba.jvm.sandbox.api.listener.ext.EventWatchBuilder;
 import com.alibaba.jvm.sandbox.api.listener.ext.EventWatcher;
 import com.alibaba.jvm.sandbox.api.resource.ModuleEventWatcher;
+import com.jd.jr.qa.constants.Constants;
 import com.jd.jr.qa.utils.CommonUtils;
 import com.jd.jr.qa.utils.ProgressPrinter;
 
@@ -41,10 +42,6 @@ public class ExceptionFactoryModule implements Module {
 
     @Resource
     private ModuleEventWatcher moduleEventWatcher;
-    /**
-     * 日志输出，默认采用logback，这里的日志输出到切入的服务日志中
-     */
-
 
     /**
      * 异常工厂
@@ -124,7 +121,7 @@ public class ExceptionFactoryModule implements Module {
 
                 final BeforeEvent bEvent = (BeforeEvent) event;
 //                log.info( bEvent.javaClassName + "#" + bEvent.javaMethodName + "将被注入 " + exType.name() + "（线程名称：" + Thread.currentThread().getName() + "）" );
-                log.info( "{}#{}在调用前将抛出{}异常。（线程名称：{}）", bEvent.javaClassName, bEvent.javaMethodName, exType.name(), Thread.currentThread().getName() );
+                log.info( Constants.Sandbox_Default_LogInfo+"{}#{}在调用前将抛出{}异常。（线程名称：{}）", bEvent.javaClassName, bEvent.javaMethodName, exType.name(), Thread.currentThread().getName() );
                 //抛出异常
                 throwsImmediately( exType.throwIt( StringUtils.isEmpty( message ) ? message : "mock 异常注入" ) );
             }

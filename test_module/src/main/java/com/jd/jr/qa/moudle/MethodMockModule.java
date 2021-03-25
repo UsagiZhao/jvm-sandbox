@@ -10,14 +10,12 @@ import com.alibaba.jvm.sandbox.api.listener.ext.AdviceListener;
 import com.alibaba.jvm.sandbox.api.listener.ext.EventWatchBuilder;
 import com.alibaba.jvm.sandbox.api.resource.ModuleEventWatcher;
 import com.jd.jr.qa.constants.Constants;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.MetaInfServices;
+import org.slf4j.Logger;
 
 import javax.annotation.Resource;
 import java.util.Map;
-
-import java.util.logging.Logger;
 
 /**
  * Created by Gochin on 2021/2/9.
@@ -25,9 +23,9 @@ import java.util.logging.Logger;
 
 @MetaInfServices(Module.class)
 @Information(id = "mock-module", version = "0.0.2", author = "zhaoguochun@jd.com")
-@Slf4j
 public class MethodMockModule implements Module {
 
+    private static final Logger log = org.slf4j.LoggerFactory.getLogger( MethodMockModule.class );
     @Resource
     private ModuleEventWatcher moduleEventWatcher;
 
