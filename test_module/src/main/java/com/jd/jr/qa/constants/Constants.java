@@ -1,5 +1,7 @@
 package com.jd.jr.qa.constants;
 
+import java.util.List;
+
 /**
  *
  */

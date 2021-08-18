@@ -1,8 +1,13 @@
 package com.jd.jr.qa.entity;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * Created by Gochin on 2021/2/9.
  */
+@Getter
+@Setter
 public class BaseRequestEntity {
     /**
      * 需要mock的类绝对路径
@@ -12,21 +17,9 @@ public class BaseRequestEntity {
      * 需要mock的方法
      */
     public String methodName;
-
-    public String getClassName() {
-        return className;
-    }
-
-    public void setClassName(String className) {
-        this.className = className;
-    }
-
-    public String getMethodName() {
-        return methodName;
-    }
-
-    public void setMethodName(String methodName) {
-        this.methodName = methodName;
-    }
+    /**
+     * 命名空间
+     */
+    public String nameSpace;
 
 }
